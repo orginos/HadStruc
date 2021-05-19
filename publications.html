@@ -1,0 +1,177 @@
+---
+layout: default
+---
+
+
+<a id="publications"></a><h1>Journal Publications</h1>
+<div>
+<!--  <p id="test">trying to fix the mathjax</p></br> -->
+  
+  <p id="demo"></p></br>
+
+  
+</div>
+  
+<script>
+var HttpClient = function() {
+  this.get = function(aUrl, aCallback) {
+    var anHttpRequest = new XMLHttpRequest();
+
+    anHttpRequest.onreadystatechange = function() { 
+      if (anHttpRequest.readyState == 4
+          && anHttpRequest.status == 200){ aCallback(anHttpRequest.responseText); }
+    }
+
+    anHttpRequest.open( "GET", aUrl, false );   
+    anHttpRequest.send( null );
+  }
+}
+
+for(year = 2021; year >= 2010; year--){
+
+ writeString = "</br><h2>~~ ";
+ writeString = writeString.concat( year.toString() );
+ writeString = writeString.concat(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</h2></br>");
+
+client = new HttpClient();
+url = 'https://inspirehep.net/api/literature?';
+
+<!-- requested data types in the json entry -->
+url = url.concat('fields=authors,titles,publication_info,dois');
+
+if(year >= 2019){      url = url.concat('&q=find+(+a+j.j.dudek.2+or+a+c.j.monahan.1+or+a+c.e.carlson.1+or+a+k.n.orginos.1)'); }
+else if(year >= 2017){ url = url.concat('&q=find+(+a+j.j.dudek.2+or+a+c.e.carlson.1+or+a+k.n.orginos.1)'); }
+else{                  url = url.concat('&q=find+(+a+c.e.carlson.1+or+a+k.n.orginos.1)'); }
+
+<!-- get only published -->
+url = url.concat('+and+tc+p+and+jy+');
+
+<!-- from requested year -->
+url = url.concat( year.toString() );
+
+<!-- this does successfully obtain the JSON entry -->
+<!-- JSON format has changed, need to parse it -->
+
+
+client.get(
+url,
+function(response){
+//  writeString = writeString.concat(response); //would write the entire JSON entry
+
+parsed = JSON.parse(response);
+list = parsed["hits"]["hits"];
+
+
+// *** LINE BREAK ***
+writeString = writeString.concat("-----</br>");
+
+// *** LOOP OVER PUBLICATIONS ***
+for (var pubNum = 0; pubNum < list.length; pubNum++) {
+
+//writeString = writeString.concat( JSON.stringify(list[pubNum]["id"], null, 2 ) );
+
+// *** TITLE ***
+writeString = writeString.concat("<b>");
+writeString = writeString.concat( JSON.stringify( list[pubNum]["metadata"]["titles"][0]["title"],null,2));
+writeString = writeString.concat("</b></br>");
+
+writeString = writeString.replace(/\\\\/g,"\\"); //replace double backslash with single backslash
+writeString = writeString.replace(/\\{o}/g,"&ouml;"); //fix the Mobius problem
+
+//&ouml;   writeString = writeString.replace(/\\\\/g,"\\"); //replace double backslash with single backslash
+
+// *** AUTHORS ***
+etAl = false;
+auths = list[pubNum]["metadata"]["authors"].length;
+authsToShow = auths;
+if(auths >= 9){authsToShow = 1; etAl = true;}
+
+writeString = writeString.concat("<i>");
+
+for (var authNum = 0; authNum < authsToShow; authNum++ ){
+  nameString = JSON.stringify(list[pubNum]["metadata"]["authors"][authNum]["first_name"],null,2);
+  nameString = nameString.concat(" ");
+  nameString = nameString.concat( JSON.stringify(list[pubNum]["metadata"]["authors"][authNum]["last_name"],null,2) );
+  writeString = writeString.concat(nameString);
+
+  if (authsToShow > 1){
+    if (authNum < (authsToShow -2) ){ writeString = writeString.concat(", "); }
+    if (authNum == authsToShow -2  ){ writeString = writeString.concat(" and ") }
+  }      
+} //next author
+
+if(etAl){ writeString = writeString.concat(" et.al."); }
+
+writeString = writeString.concat("</i></br>");
+writeString = writeString.replace(/"/g,"");
+
+
+// *** JOURNAL ***
+if((list[pubNum]["metadata"]["publication_info"][0]).hasOwnProperty('pubinfo_freetext')){
+  journalString = JSON.stringify( list[pubNum]["metadata"]["publication_info"][0]["pubinfo_freetext"],null,2);
+}
+else{
+
+  journalString = JSON.stringify( list[pubNum]["metadata"]["publication_info"][0]["journal_title"],null,2);
+  journalString = journalString.concat(" ");
+
+  journalString = journalString.concat(JSON.stringify( list[pubNum]["metadata"]["publication_info"][0]["journal_volume"],null,2));   
+  journalString = journalString.concat(", ");
+
+  if((list[pubNum]["metadata"]["publication_info"][0]).hasOwnProperty('artid')){
+    journalString = journalString.concat(JSON.stringify( list[pubNum]["metadata"]["publication_info"][0]["artid"],null,2));
+  }
+  else{
+    if((list[pubNum]["metadata"]["publication_info"][0]).hasOwnProperty('journal_issue')){
+    journalString = journalString.concat(JSON.stringify(
+    list[pubNum]["metadata"]["publication_info"][0]["journal_issue"],null,2));
+  }
+  journalString = journalString.concat("  ");
+  journalString = journalString.concat(JSON.stringify(
+    list[pubNum]["metadata"]["publication_info"][0]["page_start"],null,2));
+  journalString = journalString.concat("-");
+  journalString = journalString.concat(JSON.stringify(
+    list[pubNum]["metadata"]["publication_info"][0]["page_end"],null,2));
+  }
+
+  journalString = journalString.concat(" (");
+  journalString = journalString.concat(JSON.stringify( list[pubNum]["metadata"]["publication_info"][0]["year"],null,2));  
+  journalString = journalString.concat(")");
+}
+journalString = journalString.replace(/"/g,""); //remove any quotes
+
+
+if((list[pubNum]["metadata"]).hasOwnProperty('dois')){
+  doiString = JSON.stringify( list[pubNum]["metadata"]["dois"][0]["value"],null,2);
+  doiString = doiString.replace(/['"]+/g,''); //remove any quotes
+
+  linkString = "<a href=\"http:\/\/dx.doi.org\/";
+  linkString = linkString.concat(doiString);
+  linkString = linkString.concat("\">");
+  linkString = linkString.concat(journalString);
+  linkString = linkString.concat("<\/a>");
+}
+else{ //no doi
+  linkString = journalString;
+}
+
+
+writeString = writeString.concat(linkString);
+
+// *** LINE BREAK ***
+writeString = writeString.concat("</br>-----</br>");
+
+} //next publication 
+
+
+}); //end the client get function
+
+
+document.getElementById("demo").innerHTML += writeString;
+
+};//NEXT YEAR
+
+</script>
+
+ 
+ 
